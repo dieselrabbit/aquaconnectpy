@@ -1,5 +1,5 @@
 import time
-from aqjsonpy.controller import Controller
+from aquaconnectpy.controller import Controller
 
 pool = Controller('192.168.1.15', 6)
 time.sleep(5)

@@ -1,4 +1,4 @@
-from aqjsonpy.device import AQDevice
+from aquaconnectpy.device import AQDevice
 
 class AQSwitch(AQDevice):
     def __init__(self, data, controller):

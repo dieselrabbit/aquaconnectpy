@@ -3,16 +3,13 @@ import binascii
 import html
 import time
 from bs4 import BeautifulSoup
-from aqjsonpy.switch import AQSwitch
-from aqjsonpy.binary_sensor import AQBinarySensor
+from aquaconnectpy.switch import AQSwitch
+from aquaconnectpy.binary_sensor import AQBinarySensor
 
 class Controller:
     def __init__(self, base_address, update_interval):
         self.__base_address = base_address
         self.update_interval = update_interval
-        self.__labels = {}
-        self.__key_ids = {}
-        self.__all_leds = {}
         self.__message_lines = []
         self.__data_site = '/WNewSt.htm'
         self.__element_data = {}
