@@ -7,7 +7,7 @@ from aquaconnectpy.switch import AQSwitch
 from aquaconnectpy.binary_sensor import AQBinarySensor
 
 class Controller:
-    def __init__(self, base_address, update_interval):
+    def __init__(self, base_address, update_interval=6):
         self.__base_address = base_address
         self.update_interval = update_interval
         self.__message_lines = []
@@ -18,10 +18,12 @@ class Controller:
 
         self.setup()
 
-        self.update()
+        self.update(True)
 
 
     def setup(self):
+        '''Polls the hub and sets up the sensor/switch data
+            based on the settings of the Pool Controler'''
         url = 'http://' + self.__base_address + '/'
         mappingSoup = self.__get_page_soup(url)
         tags = mappingSoup.select('td[id^="Key_"]')
@@ -29,7 +31,7 @@ class Controller:
         for tag in tags:
             tag_data = self.__parse_element(tag)
             self.__element_data[tag_data['led_id']] = tag_data
-#            print(tag_data)
+            #print(tag_data) # Debug stuff.
 
             if tag_data['key_id'] == '00':
                 continue
@@ -41,7 +43,12 @@ class Controller:
             
         print('Controller setup.')
 
-    def update(self, reqData=None):
+    def update(self, print_panel=False, reqData=None):
+        '''Polls the hub data page and parses the response
+            into "LED" states.
+
+            Sets thos states on the sensors & switches setup
+            at load.'''
         url = 'http://' + self.__base_address + self.__data_site
         urlRequest = request.Request(url, reqData, method='POST')
         dataSoup = self.__get_page_soup(urlRequest)
@@ -51,7 +58,7 @@ class Controller:
         self.__message_lines = [lines[0], lines[1]]
         bHex = binascii.hexlify(lines[2].encode())
         strLEDs = bHex.decode("utf-8")
-        print(strLEDs)
+        #print(strLEDs) # Debug stuff
 
         for i, v in enumerate(strLEDs):
             state = self.__map_led_state(v)
@@ -63,30 +70,33 @@ class Controller:
 
             self.sensors[i].set_state(state)
                 
-        print('Status updated!')
+        if print_panel:
+            self.print_panel()
+        else:
+            print('Status updated!')
 
-        print(self.status_lines())
-        #print(self.__message_lines[1])
-
-        for led_id in sorted(self.sensors.keys()):
-            print(led_id,
-                  self.sensors[led_id].get_state(),
-                  self.sensors[led_id].get_label())
+        # Debug stuff.
+        #for led_id in sorted(self.sensors.keys()):
+        #    print(led_id,
+        #          self.sensors[led_id].get_state(),
+        #          self.sensors[led_id].get_label())
             
-        for led_id in sorted(self.switches.keys()):
-            print(led_id,
-                  self.switches[led_id].key_id,
-                  self.switches[led_id].get_state(),
-                  self.switches[led_id].get_label())
+        #for led_id in sorted(self.switches.keys()):
+        #    print(led_id,
+        #          self.switches[led_id].key_id,
+        #          self.switches[led_id].get_state(),
+        #          self.switches[led_id].get_label())
 
 
     def status_lines(self, line_num=None):
+        '''Returns the status message displayed on the LCD display'''
         if line_num in range(2):
             return self.__message_lines[line_num]
         else:
             return self.__message_lines[0] + '\n' + self.__message_lines[1]
 
     def toggle_switch(self, switch, key_id):
+        '''Sends the command ("KeyId") to toggle the designated switch'''
         pair = 'KeyId', key_id
         d = pair,
         Data = parse.urlencode(d)
@@ -103,11 +113,12 @@ class Controller:
         time.sleep(0.5)
         self.update()
 
-    def __get_page_soup(self, url):
-        response = request.urlopen(url)
+    def __get_page_soup(self, urlOrRequest):
+        response = request.urlopen(urlOrRequest)
         strData = response.read().decode('utf-8')
         response.close()
-        #print(response.status, response.headers, strData)
+        #print(response.status, response.headers, strData) # Debug stuff.
+        
         # default html parser seems to have trouble with escaped symbols
         return BeautifulSoup(html.unescape(strData), 'html.parser')
 
@@ -125,7 +136,9 @@ class Controller:
             return "no_key"
 
     def __parse_element(self, tag):
+        '''Parses the html tag for switch/LED definition'''
         data = {}
+
         #Parses the LED index associated with this tag
         prefix = 'Key_'
         dataLen = 2
@@ -147,6 +160,39 @@ class Controller:
             data['label'] = tag.text.strip()
 
         return data
+
+    def print_panel(self):
+        '''Prints and ascii representation of the pool control
+            panel'''
+        led_order = [[23],
+                     [0],
+                     [1,  6, 11, 16],
+                     [2,  7, 12, 17],
+                     [3,  8, 13, 18],
+                     [4,  9, 14, 19],
+                     [5, 10, 15, 20]]
+
+        max_len = 0
+        for sensor in self.sensors.values():
+            if len(sensor.get_label()) > max_len:
+                max_len = len(sensor.get_label())
+
+        print('------------------------')
+        print('|', self.status_lines(0).center(20), '|')
+        print('|', self.status_lines(1).center(20), '|')
+        print('------------------------')
+        for line in led_order:
+            for led in line:
+                try:
+                    print(str(led).rjust(2), self.sensors[led].get_label().rjust(max_len),
+                          self.sensors[led].get_state().ljust(5), end='    ')
+                except KeyError:
+                    continue
+            print()
+
+            
+        
+        
         
 
         
