@@ -7,9 +7,8 @@ from aquaconnectpy.switch import AQSwitch
 from aquaconnectpy.binary_sensor import AQBinarySensor
 
 class Controller:
-    def __init__(self, base_address, update_interval=6):
+    def __init__(self, base_address):
         self.__base_address = base_address
-        self.update_interval = update_interval
         self.__message_lines = []
         self.__data_site = '/WNewSt.htm'
         self.__element_data = {}
@@ -18,8 +17,8 @@ class Controller:
 
         self.setup()
 
-        self.update(True)
-
+        self.update()
+        
 
     def setup(self):
         '''Polls the hub and sets up the sensor/switch data
@@ -31,10 +30,8 @@ class Controller:
         for tag in tags:
             tag_data = self.__parse_element(tag)
             self.__element_data[tag_data['led_id']] = tag_data
-            #print(tag_data) # Debug stuff.
 
-            if tag_data['key_id'] == '00':
-                continue
+            if tag_data['key_id'] == '00': continue
 
             if tag_data['key_id'] != 'xx':
                 self.switches[tag_data['led_id']] = AQSwitch(tag_data, self)
@@ -42,6 +39,7 @@ class Controller:
             self.sensors[tag_data['led_id']] = AQBinarySensor(tag_data, self)
             
         print('Controller setup.')
+        
 
     def update(self, print_panel=False, reqData=None):
         '''Polls the hub data page and parses the response
@@ -70,23 +68,7 @@ class Controller:
 
             self.sensors[i].set_state(state)
                 
-        if print_panel:
-            self.print_panel()
-        else:
-            print('Status updated!')
-
-        # Debug stuff.
-        #for led_id in sorted(self.sensors.keys()):
-        #    print(led_id,
-        #          self.sensors[led_id].get_state(),
-        #          self.sensors[led_id].get_label())
-            
-        #for led_id in sorted(self.switches.keys()):
-        #    print(led_id,
-        #          self.switches[led_id].key_id,
-        #          self.switches[led_id].get_state(),
-        #          self.switches[led_id].get_label())
-
+        print('Status updated!')
 
     def status_lines(self, line_num=None):
         '''Returns the status message displayed on the LCD display'''
@@ -100,7 +82,6 @@ class Controller:
         pair = 'KeyId', key_id
         d = pair,
         Data = parse.urlencode(d)
-        print(Data)
         bData = Data.encode('utf-8')
         url = 'http://' + self.__base_address + self.__data_site
         headers = {"Content-type": "application/x-www-form-urlencoded",
@@ -108,16 +89,14 @@ class Controller:
                    "Connection": "close",
                    "Accept": "*/*\\"} # <- This is the key to it working
         urlRequest = request.Request(url, bData, headers)
-        print(urlRequest.get_full_url(), bData)
         self.__get_page_soup(urlRequest)
         time.sleep(0.5)
-        self.update()
+        self.update(self.__print_update)
 
     def __get_page_soup(self, urlOrRequest):
         response = request.urlopen(urlOrRequest)
         strData = response.read().decode('utf-8')
         response.close()
-        #print(response.status, response.headers, strData) # Debug stuff.
         
         # default html parser seems to have trouble with escaped symbols
         return BeautifulSoup(html.unescape(strData), 'html.parser')
@@ -188,10 +167,7 @@ class Controller:
                           self.sensors[led].get_state().ljust(5), end='    ')
                 except KeyError:
                     continue
-            print()
-
-            
-        
+            print()      
         
         
 
