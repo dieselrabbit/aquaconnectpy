@@ -18,10 +18,7 @@ def getopts(argv):
 if __name__ == '__main__':
     import sys
     myargs = getopts(sys.argv)
-    myargs['a'] = '192.168.1.15' # Debug
     #myargs['-p'] = True
-    myargs['L'] = '5'
-    myargs['i'] = '10'
     
     if 'a' in myargs:  # Example usage.
         print(myargs['a'])
